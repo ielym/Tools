@@ -39,6 +39,10 @@ Step9 : 创建分支
 Step10 : 查看分支
 	git branch
 
+Step11 : 切换分支
+	git checkout ielym
+
+
 Step9 : 上传本地分支到远程分支
 	git push origin ielym
 
