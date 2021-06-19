@@ -1,0 +1,158 @@
+Step0:
+	1.安装 Docker
+
+
+Step1: Docker镜像 (images)
+
+	1.去 https://hub.docker.com/r/nvidia/cuda/tags?page=2&name=cudnn7 找到合适的cuda+cudnn+ubuntu版本
+	2.找到合适的版本后，pull下来 （如：docker pull nvidia/cuda:9.0-cudnn7-devel-ubuntu16.04
+	3. docker iamges 查看已有镜像
+
+Step2:
+	
+	创建容器并挂载本地目录 /home
+	
+		docker run --name lym --runtime=nvidia -it -v /home/:/home/ nvidia/cuda:9.0-cudnn7-devel-ubuntu16.04 /bin/bash
+		-it 命令行交互模式
+		-v 挂载目录
+		
+		nvidia-docker run --shm-size=16g --runtime=nvidia -it -v /home/:/home ielym/torch:v5 /bin/bash
+		
+
+Step3:
+	
+	在容器里安装 Python 3.6.5 (如果安装 Conda， 和Linux安装步骤相同，先下载.sh 再bash ***.sh)
+	
+	apt-get update
+	apt-get upgrade
+	apt install build-essential -y
+	apt install libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev -y
+	apt install zlib1g-dev
+	apt install wget
+	apt install openssl
+	apt install curl
+	apt install libsqlite3-dev
+	wget https://www.python.org/ftp/python/3.6.5/Python-3.6.5.tgz （可能下不下来，可以手动下载再上传）
+	tar -xvf Python-3.6.5.tgz
+	cd Python-3.6.5
+	./configure --enable-loadable-sqlite-extensions
+	make
+	make install
+	apt-get clean
+	rm -rf /var/lib/apt/lists/*
+	ln -s /usr/local/bin/pip3 /usr/bin/pip
+	ln -s /usr/local/bin/python3 /usr/bin/python
+
+
+Step4:
+	
+	在容器里 ( pip ) 安装 torch-gpu
+	
+	去 https://pytorch.org/get-started/locally/ 选择版本（或 https://pytorch.org/get-started/previous-versions/ 安装之前的版本）
+	(pip 直接安装对应的版本 可能没写cuda版本 但没有影响， 测试可以使用gpu)
+	
+	查看torch-gpu是否安装成功
+	import torch 
+	torch.cuda.is_available()  #如果输出 True 表示安装成功
+
+
+Step5:
+	
+	1. 查看镜像 docker images
+	2. 删除镜像 docker rmi 镜像id
+	
+	1. 查看容器 docker ps -a
+	2. 启动容器 docker start 容器ID
+	3. 停止容器 docker stop 容器ID
+	4. 删除容器 docker rm 容器ID
+	
+	1. 进入容器 docker exec -it 容器ID /bin/bash  #需要先启动容器
+
+
+Step6:
+	
+	1. 打包容器
+		docker export 容器ID > ttt.tar
+		
+	2. 使用export对应tar
+		docker import 
+		
+	2. 打包镜像
+		docker save -o predict.tar ielym/predict:v1
+	
+	3. 使用tar镜像
+		docker load -i predict.tar
+
+Step 7:
+	
+	制作镜像
+	
+	1.构建环境 
+	
+	vim Dockerfile
+	
+	From nvidia/cuda:9.0-cudnn7-devel-ubuntu16.04
+	RUN apt-get update && apt-get install -y apt-transport-https
+	RUN apt-get upgrade -y
+	RUN apt install build-essential -y
+	RUN apt install libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev -y
+	RUN apt install zlib1g-dev
+	RUN apt install wget
+	RUN apt install openssl
+	RUN apt install curl
+	RUN apt install libsqlite3-dev
+	COPY ./Python-3.6.5.tgz /home/
+	RUN tar -xvf /home/Python-3.6.5.tgz
+	RUN ./Python-3.6.5/configure --enable-loadable-sqlite-extensions
+	RUN make
+	RUN make install
+	RUN apt-get clean
+	RUN rm -rf /var/lib/apt/lists/*
+	RUN ln -s /usr/local/bin/pip3 /usr/bin/pip
+	RUN ln -s /usr/local/bin/python3 /usr/bin/python
+	COPY ./numpy-1.19.4-cp36-cp36m-manylinux1_x86_64.whl /home/
+	COPY ./torch-1.1.0-cp36-cp36m-manylinux1_x86_64.whl /home/
+	RUN pip install /home/numpy-1.19.4-cp36-cp36m-manylinux1_x86_64.whl
+	RUN pip install /home/torch-1.1.0-cp36-cp36m-manylinux1_x86_64.whl
+	RUN pip install torch==1.1.0 torchvision==0.3.0
+	RUN pip install torchsummary
+	RUN pip install scikit-build
+	COPY ./cmake-3.18.4.post1-py3-none-manylinux1_x86_64.whl /home/
+	RUN pip install /home/cmake-3.18.4.post1-py3-none-manylinux1_x86_64.whl
+	COPY ./opencv-python-4.4.0.46.tar.gz /home/
+	RUN pip install /home/opencv-python-4.4.0.46.tar.gz
+	pip install matplotlib
+	COPY ./matplotlib-3.3.3-cp36-cp36m-manylinux1_x86_64.whl /home/
+	RUN pip install /home/matplotlib-3.3.3-cp36-cp36m-manylinux1_x86_64.whl
+	
+	2. 封装代码数据 （同级目录有且只有 Dockerfile, testA, src）
+	
+	From ielym/torch:v2
+	ADD . /home
+	WORKDIR /home/src_ielym
+	ENTRYPOINT ["python3"]
+	CMD ["./predict.py" ]
+
+	2. docker build -t test1:v1 ./
+		
+	
+	3. 刚刚的镜像名称是 test1:v1 和我的用户名(ielym)不同，虽然不影响本地使用，但无法push上传，需要修改
+		docker tag test1:v1 [用户名]/torch:v1
+		docker tag test1:v1 ielym/torch:v1
+	
+	4. push上传到docker hub
+		docker login # ielym lym,1996515
+		docker push ielym/torch:v1 
+	
+	5. 通过容器制作镜像
+		docker commit 容器ID ttt/tt:v1
+		
+	6. 运行镜像 （运行代码）
+		nvidia-docker run -it ielym/predict:v1
+
+
+		
+	
+	
+	
+
