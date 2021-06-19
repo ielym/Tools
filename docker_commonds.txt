@@ -1,5 +1,5 @@
 Step0:
-	1.安装 Docker
+	1.安装 Docker 知乎上有一篇比较详细，且无其他问题
 
 
 Step1: Docker镜像 (images)
