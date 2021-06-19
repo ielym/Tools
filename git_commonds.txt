@@ -40,6 +40,10 @@ Step10 : 查看分支
 	git branch
 
 Step9 : 上传本地分支到远程分支
-	git push 
+	git push origin ielym
+
+Step10 : 使本地分支跟踪远程分支
+	git branch --set-upstream-to=origin/远程分支名称 本地分支名称
+	git branch --set-upstream-to=origin/ielym ielym 
 
 
