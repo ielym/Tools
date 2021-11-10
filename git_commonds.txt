@@ -1,3 +1,5 @@
+添加ssh key
+ssh-keygen -t rsa -C email@email.com
 
 1 : 在目录中创建新的git仓库
 	cmd : git init
